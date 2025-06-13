@@ -139,3 +139,5 @@ docs/
 # pnpm
 typescript/.pnpm-store
 typescript/.pnp.*
+
+claude_desktop_mcp_config.json

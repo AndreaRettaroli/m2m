@@ -30,7 +30,7 @@ app.post("/message", async (req: Request, res: Response) => {
     }
   }
 
-  return res.status(200).json({ status: "received" });
+  res.status(200).json({ status: "received" });
 });
 
 const PORT = 5001;

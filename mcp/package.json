@@ -3,12 +3,14 @@
   "description": "Coinbase AgentKit Example Model Context Protocol Server",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "author": "Coinbase Inc.",
   "license": "Apache-2.0",
   "bin": {
     "agentkit": "./dist/index.js"
   },
   "scripts": {
+    "start": "node --loader ts-node/esm index.ts",
     "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",
     "lint": "eslint -c .eslintrc.json *.ts",
     "lint:fix": "eslint -c .eslintrc.json *.ts --fix",
@@ -26,6 +28,5 @@
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
-  },
-  "packageManager": "pnpm@9.14.4+sha512.c8180b3fbe4e4bca02c94234717896b5529740a6cbadf19fa78254270403ea2f27d4e1d46a08a0f56c89b63dc8ebfd3ee53326da720273794e6200fcf0d184ab"
+  }
 }
