@@ -1,34 +1,35 @@
 {
-  "name": "@coinbase/cdp-model-context-protocol-server-example",
-  "description": "Coinbase AgentKit Example Model Context Protocol Server",
+  "name": "mcp",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "author": "Coinbase Inc.",
-  "license": "Apache-2.0",
-  "bin": {
-    "agentkit": "./dist/index.js"
-  },
   "scripts": {
-    "start": "node --loader ts-node/esm index.ts",
-    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",
-    "lint": "eslint -c .eslintrc.json *.ts",
-    "lint:fix": "eslint -c .eslintrc.json *.ts --fix",
-    "format": "prettier --write \"**/*.{ts,js,cjs,json,md}\"",
-    "format:check": "prettier -c .prettierrc --check \"**/*.{ts,js,cjs,json,md}\""
+    "dev": "tsx index.ts",
+    "format": "prettier -c .prettierrc --write \"**/*.{ts,js,cjs,json,md}\"",
+    "format:check": "prettier -c .prettierrc --check \"**/*.{ts,js,cjs,json,md}\"",
+    "lint": "eslint . --ext .ts --fix",
+    "lint:check": "eslint . --ext .ts"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
-    "@coinbase/agentkit": "^0.8.0",
-    "@coinbase/agentkit-model-context-protocol": "^0.2.0",
-    "@hpke/chacha20poly1305": "^1.6.2",
-    "@hpke/core": "^1.7.2",
-    "@modelcontextprotocol/sdk": "^1.6.1",
-    "viem": "^2.24.1",
-    "zod": "^3.22.4"
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "axios": "^1.9.0",
+    "dotenv": "^16.5.0",
+    "viem": "^2.30.6",
+    "x402-axios": "^0.3.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "@eslint/js": "^9.24.0",
+    "@typescript-eslint/eslint-plugin": "^8.29.1",
+    "@typescript-eslint/parser": "^8.29.1",
+    "eslint": "^9.24.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsdoc": "^50.6.9",
+    "eslint-plugin-prettier": "^5.2.6",
+    "prettier": "3.5.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
   }
 }

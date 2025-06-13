@@ -1,21 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "rootDir": ".",
-    "module": "Node16",
-    "outDir": "./dist",
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "strict": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "moduleResolution": "node16",
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "noImplicitAny": false,
-    "removeComments": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "baseUrl": ".",
+    "types": ["node"]
   },
-  "include": ["*.ts"],
-  "exclude": ["node_modules/**/*"]
+  "include": ["index.ts"]
 }

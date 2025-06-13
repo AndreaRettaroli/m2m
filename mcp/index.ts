@@ -1,210 +1,90 @@
-import {
-  AgentKit,
-  cdpApiActionProvider,
-  erc20ActionProvider,
-  erc721ActionProvider,
-  pythActionProvider,
-  SmartWalletProvider,
-  walletActionProvider,
-  wethActionProvider,
-} from "@coinbase/agentkit";
-import { getMcpTools } from "@coinbase/agentkit-model-context-protocol";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { Address, Hex } from "viem";
-import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
+import { withPaymentInterceptor } from "x402-axios";
+import axios from "axios";
+import { Hex } from "viem";
+import { config } from "dotenv";
+import { text } from "stream/consumers";
+config();
 
-/**
- * Validates that required environment variables are set
- */
-function validateEnvironment(): void {
-  if (!process.env.CDP_API_KEY_ID || !process.env.CDP_API_KEY_SECRET) {
-    console.error(
-      "Error: CDP_API_KEY_ID and CDP_API_KEY_SECRET environment variables must be set.",
-    );
-    process.exit(1);
-  }
-  const requiredVars = [process.env.CDP_API_KEY_ID, process.env.CDP_API_KEY_SECRET];
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
-
-  if (missingVars.length > 0) {
-    console.error("Error: Required environment variables are not set:");
-    missingVars.forEach(varName => {
-      console.error(`${varName}=your_${varName.toLowerCase()}_here`);
-    });
-    process.exit(1);
-  }
-
-  if (!process.env.NETWORK_ID) {
-    console.warn("Warning: NETWORK_ID not set, defaulting to base-sepolia testnet");
-  }
+export interface Message {
+  messageId: string;
+  sender: string;
+  recipient: string;
+  payload: string;
+  replyTo?: string;
+  method: string;
+  jsonrpc: "2.0";
+  params: { text: string };
 }
 
-/**
- * This function creates a new server instance with the capabilities to handle MCP requests.
- * It configures the CDP Wallet Provider with the provided API keys and network ID.
- * It then initializes the AgentKit with the configured wallet provider and action providers.
- *
- * @returns {Promise<Server>} The initialized MCP server
- */
-async function initializeServer() {
-  try {
-    // Create server instance with capabilities
-    const server = new Server(
-      {
-        name: "cdp-agentkit",
-        version: "1.0.0",
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      },
-    );
+const privateKey =
+  (process.env.PRIVATE_KEY as Hex) ||
+  "0xf956457278a7342550fffa7cefb14826e05a29c94f8b94ef037553bcfb7a9a95"; // e.g. "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+const baseURL = (process.env.BASE_URL as string) || "http://localhost:3000"; // e.g. https://example.com
+const endpointPath = "/a2a/message"; // e.g. /weather
 
-    // Configure CDP Wallet Provider
-    const privateKey = (process.env.PRIVATE_KEY || generatePrivateKey()) as Hex;
-    const signer = privateKeyToAccount(privateKey);
-    console.log("🚀 ~ initializeServer ~ signer:", signer.address);
-
-    const config = {
-      apiKeyId: process.env.CDP_API_KEY_ID!,
-      apiKeySecret: process.env.CDP_API_KEY_SECRET!,
-      networkId: process.env.NETWORK_ID || "base-sepolia",
-      smartWalletAddress: process.env.SMART_WALLET_ADDRESS as Address,
-      signer,
-    };
-
-    const walletProvider = await SmartWalletProvider.configureWithWallet(config);
-
-    if (!process.env.PRIVATE_KEY || !process.env.SMART_WALLET_ADDRESS) {
-      console.log("Save your private key and smart wallet address to the environment variables");
-      console.log("PRIVATE_KEY=" + privateKey);
-      console.log("SMART_WALLET_ADDRESS=" + walletProvider.getAddress());
-    }
-
-    // Initialize AgentKit
-    const agentkit = await AgentKit.from({
-      walletProvider,
-      actionProviders: [
-        wethActionProvider(),
-        pythActionProvider(),
-        walletActionProvider(),
-        erc20ActionProvider(),
-        erc721ActionProvider(),
-        cdpApiActionProvider({
-          apiKeyId: config.apiKeyId,
-          apiKeySecret: config.apiKeySecret,
-        }),
-      ],
-    });
-
-    // Get MCP tools from AgentKit
-    const { tools, toolHandler } = await getMcpTools(agentkit);
-
-    // Set up request handlers
-    server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools,
-      };
-    });
-
-    server.setRequestHandler(CallToolRequestSchema, async request => {
-      try {
-        return await toolHandler(request.params.name, request.params.arguments);
-      } catch (error) {
-        console.error(`Error executing tool ${request.params.name}:`, error);
-        throw new Error(`Tool ${request.params.name} failed: ${error}`);
-      }
-    });
-
-    return server;
-  } catch (error) {
-    console.error("Failed to initialize server:", error);
-    throw error;
-  }
+if (!privateKey || !baseURL || !endpointPath) {
+  throw new Error("Missing environment variables");
 }
 
-/**
- * Main function to run the MCP server
- */
-async function main() {
-  validateEnvironment();
+// Create a wallet client to handle payments
+const account = privateKeyToAccount(privateKey);
 
-  try {
-    const server = await initializeServer();
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error("CDP AgentKit MCP Server running on stdio");
-  } catch (error) {
-    console.error("Fatal error:", error);
-    process.exit(1);
-  }
-}
+// Create an axios client with payment interceptor using x402-axios
+const client = withPaymentInterceptor(axios.create({ baseURL }), account);
 
-if (require.main === module) {
-  main().catch(error => {
-    console.error("Fatal error in main():", error);
-    process.exit(1);
-  });
-}
+// Create an MCP server
+const server = new McpServer({
+  name: "x402 MCP Client Demo",
+  version: "1.0.0",
+});
 
-// import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-// import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-// import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-// import { getMcpTools } from "@coinbase/agentkit-model-context-protocol";
-// import { AgentKit } from "@coinbase/agentkit";
-
-// import { cdpApiActionProvider } from "@coinbase/agentkit";
-
-// console.log("🚀 ~ process.env.CDP_API_KEY_ID:", process.env.CDP_API_KEY_ID);
-// console.log("🚀 ~ process.env.CDP_API_KEY_SECRET:", process.env.CDP_API_KEY_SECRET);
-// // Initialize AgentKit with action providers
-// const agentKit = await AgentKit.from({
-//   actionProviders: [
-//     cdpApiActionProvider({
-//       apiKeyId: "e824fb06-0f78-41ad-bcfe-67c86ba2958b",
-//       apiKeySecret:
-//         "n9bDeTX5Arxw7MO12J+dB/xMrm67yaYlgHk/nBTXwDbSmivc+ONttKv2jTXbCL9q+1PpbNroCd9V63oN2BjUhg==",
-//     }),
-//   ],
-// });
-
-// // Retrieve MCP-compatible tools from AgentKit
-// const { tools, toolHandler } = await getMcpTools(agentKit);
-
-// // Create MCP server instance
-// const server = new Server(
-//   {
-//     name: "agentkit",
-//     version: "0.1.0",
-//   },
-//   {
-//     capabilities: {
-//       tools: {},
-//     },
-//   },
+// Add an addition tool
+// server.tool(
+//   "get-data-from-resource-server",
+//   "Get data from the resource server (in this example, the weather)", //change this description to change when the client calls the tool
+//   {},
+//   async () => {
+//     const res = await client.get(endpointPath);
+//     return {
+//       content: [{ type: "text", text: JSON.stringify(res.data) }],
+//     };
+//   }
 // );
 
-// // Handle requests to list available tools
-// server.setRequestHandler(ListToolsRequestSchema, async () => {
-//   return {
-//     tools,
-//   };
-// });
+server.tool(
+  "contact-agent",
+  "Contact the agent (in this example, the weather)",
+  {},
+  async () => {
+    const initial: Message = {
+      messageId: "msg-001",
+      sender: "AgentA",
+      recipient: "AgentB",
+      payload: "Hello from A!",
+      method: "echo",
+      jsonrpc: "2.0",
+      params: {
+        text: "Hello from A!",
+      },
+    };
+    const res = await client.post(endpointPath, initial);
+    return {
+      content: [{ type: "text", text: JSON.stringify(res.data) }],
+    };
+  }
+);
 
-// // Handle requests to execute specific tools
-// server.setRequestHandler(CallToolRequestSchema, async request => {
-//   try {
-//     return toolHandler(request.params.name, request.params.arguments);
-//   } catch (error) {
-//     throw new Error(`Tool ${request.params.name} failed: ${error}`);
-//   }
-// });
+async function main() {
+  //console.log("Starting MCP server...");
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  //console.log("MCP server started");
+}
 
-// // Set up standard input/output transport for the server
-// const transport = new StdioServerTransport();
-
-// // Connect the server to the transport
-// await server.connect(transport);
+main().catch((error) => {
+  //console.error("Fatal error in main():", error);
+  process.exit(1);
+});

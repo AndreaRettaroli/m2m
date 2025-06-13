@@ -4,6 +4,8 @@ import bodyParser from "body-parser";
 import { Hex } from "viem";
 
 import { paymentMiddleware, Network } from "x402-express";
+import { config } from "dotenv";
+config();
 
 // Load agent metadata from JSON file
 // const agentCard = JSON.parse(
@@ -15,7 +17,9 @@ import { paymentMiddleware, Network } from "x402-express";
 // --- Configuration ---
 const PORT = 3000;
 // const HOST: string = process.env.HOST || "0.0.0.0";
-const privateKey = process.env.PRIVATE_KEY as Hex;
+
+const publicKey = process.env.PUBLIC_KEY as Hex;
+console.log("🚀 ~ publicKey:", publicKey);
 
 // --- Express App ---
 const app = express();
@@ -30,7 +34,7 @@ app.use(bodyParser.json());
 // MIDDLEWARE
 app.use(
   paymentMiddleware(
-    privateKey, // your receiving wallet address
+    publicKey, // your receiving wallet address
     {
       // Route configurations for protected endpoints
       "GET /weather": {
@@ -51,6 +55,7 @@ app.use(
 );
 // Implement your route
 app.get("/weather", (req, res) => {
+  console.log("🚀 ~ api call");
   res.send({
     report: {
       weather: "sunny",
@@ -63,6 +68,12 @@ app.get("/weather", (req, res) => {
 app.post("/a2a/message", (req: Request, res: Response) => {
   const message = req.body;
   console.log("🚀 ~ app.post ~ message:", message);
+  console.log(
+    !message.jsonrpc ||
+      message.jsonrpc !== "2.0" ||
+      !message.method ||
+      !message.id
+  );
 
   // Basic JSON-RPC 2.0 validation
   if (
@@ -80,7 +91,8 @@ app.post("/a2a/message", (req: Request, res: Response) => {
 
   // Handle a single skill: `echo`
   if (message.method === "echo") {
-    const text = message.params && message.params.text;
+    const text = (message.params && message.params.text) || message.payload;
+    console.log("🚀 ~ app.post ~ text:", text);
     if (typeof text !== "string") {
       res.status(400).json({
         jsonrpc: "2.0",
@@ -120,3 +132,36 @@ app.use((req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`A2A Agent listening at http://localhost:${PORT}`);
 });
+
+// import express from "express";
+// import { paymentMiddleware, Network } from "x402-express";
+
+// const app = express();
+
+// app.use(paymentMiddleware(
+//   "0x32082264378f3C7ae01833f97711352D48f7D973", // your receiving wallet address
+//   {  // Route configurations for protected endpoints
+//       "GET /weather": {
+//         // USDC amount in dollars
+//         price: "$0.001",
+//         network: "base-sepolia",
+//       },
+//     },
+//   {
+//     url: "https://x402.org/facilitator", // Facilitator URL for Base Sepolia testnet.
+//   }
+// ));
+
+// // Implement your route
+// app.get("/weather", (req, res) => {
+//   res.send({
+//     report: {
+//       weather: "sunny",
+//       temperature: 70,
+//     },
+//   });
+// });
+
+// app.listen(3000, () => {
+//   console.log(`Server listening at http://localhost:3000`);
+// });
