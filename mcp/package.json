@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "sse": "tsx index.ts sse",
     "dev": "tsx index.ts",
     "format": "prettier -c .prettierrc --write \"**/*.{ts,js,cjs,json,md}\"",
     "format:check": "prettier -c .prettierrc --check \"**/*.{ts,js,cjs,json,md}\"",
@@ -17,6 +18,7 @@
     "@modelcontextprotocol/sdk": "^1.12.1",
     "axios": "^1.9.0",
     "dotenv": "^16.5.0",
+    "express": "^5.1.0",
     "viem": "^2.30.6",
     "x402-axios": "^0.3.3"
   },

@@ -15,7 +15,7 @@ config();
 //   )
 // );
 // --- Configuration ---
-const PORT = 3000;
+const PORT = 5000;
 // const HOST: string = process.env.HOST || "0.0.0.0";
 
 const publicKey = process.env.PUBLIC_KEY as Hex;
@@ -42,11 +42,11 @@ app.use(
         price: "$0.001",
         network: "base-sepolia",
       },
-      "POST /a2a/message": {
-        // USDC amount in dollars
-        price: "$0.001",
-        network: "base-sepolia",
-      },
+      // "POST /a2a/message": {
+      //   // USDC amount in dollars
+      //   price: "$0.001",
+      //   network: "base-sepolia",
+      // },
     },
     {
       url: "https://x402.org/facilitator", // Facilitator URL for Base Sepolia testnet.
