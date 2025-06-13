@@ -20,6 +20,8 @@
   "dependencies": {
     "@coinbase/agentkit": "^0.8.0",
     "@coinbase/agentkit-model-context-protocol": "^0.2.0",
+    "@hpke/chacha20poly1305": "^1.6.2",
+    "@hpke/core": "^1.7.2",
     "@modelcontextprotocol/sdk": "^1.6.1",
     "viem": "^2.24.1",
     "zod": "^3.22.4"
