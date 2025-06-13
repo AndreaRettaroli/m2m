@@ -1,23 +1,16 @@
-import express from "express";
-import { Request, Response } from "express";
+import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
+import { createProxyMiddleware, Options } from "http-proxy-middleware";
+import { v4 as uuidv4 } from "uuid";
 import { Hex } from "viem";
-
-import { paymentMiddleware, Network } from "x402-express";
+import { paymentMiddleware } from "x402-express";
 import { config } from "dotenv";
+import axios from "axios";
+
 config();
 
-// Load agent metadata from JSON file
-// const agentCard = JSON.parse(
-//   fs.readFileSync(
-//     path.join(__dirname, "..", "public", "./well-known", "agent.json"),
-//     "utf8"
-//   )
-// );
 // --- Configuration ---
 const PORT = 5000;
-// const HOST: string = process.env.HOST || "0.0.0.0";
-
 const publicKey = process.env.PUBLIC_KEY as Hex;
 console.log("🚀 ~ publicKey:", publicKey);
 
@@ -25,135 +18,29 @@ console.log("🚀 ~ publicKey:", publicKey);
 const app = express();
 app.use(bodyParser.json());
 
-// // 1. Serve the Agent Card at /.well-known/agent.json
-// app.get("/.well-known/agent.json", (req: Request, res: Response) => {
-//   res.setHeader("Content-Type", "application/json");
-//   res.send(agentCard);
-// });
-
-// MIDDLEWARE
+// 🛡️ x402 MIDDLEWARE
 app.use(
   paymentMiddleware(
-    publicKey, // your receiving wallet address
+    publicKey,
     {
-      // Route configurations for protected endpoints
-      "GET /weather": {
-        // USDC amount in dollars
-        price: "$0.001",
-        network: "base-sepolia",
-      },
+      // "GET /weather": {
+      //   price: "$0.001",
+      //   network: "base-sepolia",
+      // },
       // "POST /a2a/message": {
-      //   // USDC amount in dollars
       //   price: "$0.001",
       //   network: "base-sepolia",
       // },
     },
     {
-      url: "https://x402.org/facilitator", // Facilitator URL for Base Sepolia testnet.
+      url: "https://x402.org/facilitator",
     }
   )
 );
-// Implement your route
-app.get("/weather", (req, res) => {
-  console.log("🚀 ~ api call");
-  res.send({
-    report: {
-      weather: "sunny",
-      temperature: 70,
-    },
-  });
-});
-// 2. A2A Message Endpoint
-//    According to the A2A spec, messages use JSON-RPC 2.0 over HTTP POST
-app.post("/a2a/message", (req: Request, res: Response) => {
-  const message = req.body;
-  console.log("🚀 ~ app.post ~ message:", message);
-  console.log(
-    !message.jsonrpc ||
-      message.jsonrpc !== "2.0" ||
-      !message.method ||
-      !message.id
-  );
 
-  // Basic JSON-RPC 2.0 validation
-  if (
-    !message.jsonrpc ||
-    message.jsonrpc !== "2.0" ||
-    !message.method ||
-    !message.id
-  ) {
-    res.status(400).json({
-      jsonrpc: "2.0",
-      id: message.id || null,
-      error: { code: -32600, message: "Invalid Request" },
-    });
-  }
-
-  // Handle a single skill: `echo`
-  if (message.method === "echo") {
-    const text = (message.params && message.params.text) || message.payload;
-    console.log("🚀 ~ app.post ~ text:", text);
-    if (typeof text !== "string") {
-      res.status(400).json({
-        jsonrpc: "2.0",
-        id: message.id,
-        error: {
-          code: -32602,
-          message: "Invalid params: expected { text: string }",
-        },
-      });
-    }
-
-    // Respond with the same text
-    res.json({
-      jsonrpc: "2.0",
-      id: message.id,
-      result: {
-        echoed: text,
-      },
-    });
-  } else {
-    // Method not found
-
-    res.status(404).json({
-      jsonrpc: "2.0",
-      id: message.id,
-      error: { code: -32601, message: "Method not found" },
-    });
-  }
-});
-
-// 3. Fallback for unknown routes
-app.use((req: Request, res: Response) => {
-  res.status(404).send("Not found");
-});
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`A2A Agent listening at http://localhost:${PORT}`);
-});
-
-// import express from "express";
-// import { paymentMiddleware, Network } from "x402-express";
-
-// const app = express();
-
-// app.use(paymentMiddleware(
-//   "0x32082264378f3C7ae01833f97711352D48f7D973", // your receiving wallet address
-//   {  // Route configurations for protected endpoints
-//       "GET /weather": {
-//         // USDC amount in dollars
-//         price: "$0.001",
-//         network: "base-sepolia",
-//       },
-//     },
-//   {
-//     url: "https://x402.org/facilitator", // Facilitator URL for Base Sepolia testnet.
-//   }
-// ));
-
-// // Implement your route
+// ✅ Custom route (demo purpose)
 // app.get("/weather", (req, res) => {
+//   console.log("🚀 ~ api call to /weather");
 //   res.send({
 //     report: {
 //       weather: "sunny",
@@ -162,6 +49,137 @@ app.listen(PORT, () => {
 //   });
 // });
 
-// app.listen(3000, () => {
-//   console.log(`Server listening at http://localhost:3000`);
-// });
+// ✅ Proxy /a2a/message to Python Hello World Agent
+
+app.use(
+  "/weather",
+  createProxyMiddleware({
+    target: "http://localhost:9999", // Python agent runs here
+    changeOrigin: true,
+    pathRewrite: { "^/weather": "/" }, // Optional: forward as root path
+    selfHandleResponse: true,
+    on: {
+      proxyReq: (proxyReq, req, res) => {
+        // console.log("🚀 ~ req:", req);
+        if (req.method === "POST") {
+          const userMessage = "how much is 10 USD in INR?";
+
+          const payload = {
+            jsonrpc: "2.0",
+            id: uuidv4(),
+            method: "message/send",
+            params: {
+              message: {
+                role: "user",
+                parts: [
+                  {
+                    kind: "text",
+                    text: userMessage,
+                  },
+                ],
+                messageId: uuidv4(),
+              },
+            },
+          };
+
+          const bodyString = JSON.stringify(payload);
+
+          // Set proper headers
+          proxyReq.setHeader("Content-Type", "application/json");
+          proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyString));
+
+          // Overwrite the request stream with new body
+          proxyReq.write(bodyString);
+        }
+      },
+      proxyRes: (proxyRes, req, res) => {
+        let body = Buffer.from("");
+
+        proxyRes.on("data", (chunk) => {
+          body = Buffer.concat([body, chunk]);
+        });
+
+        proxyRes.on("end", () => {
+          try {
+            const json = JSON.parse(body.toString("utf-8"));
+            console.log("🚀 ~ proxyRes.on ~ json:", json);
+
+            const text = json?.result?.parts?.[0]?.text;
+            console.log("🚀 ~ proxyRes.on ~ text:", text);
+            res.end(
+              JSON.stringify({ text: json?.result?.parts[0]?.text || "" })
+            );
+
+            // if (typeof text === "string") {
+            //   res.end(JSON.stringify(text));
+            // } else {
+            //   res.statusCode = 500;
+            //   res.end(
+            //     JSON.stringify({ error: "Invalid agent response format" })
+            //   );
+            // }
+          } catch (err) {
+            console.error("❌ Failed to parse agent response", err);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: "Failed to parse response" }));
+          }
+        });
+      },
+    },
+  })
+);
+
+app.get("/weather", async (req: Request, res: Response) => {
+  const userMessage = "how much is 10 USD in INR?"; // hardcoded for now
+
+  const payload = {
+    jsonrpc: "2.0",
+    id: uuidv4(),
+    method: "message/send",
+    params: {
+      message: {
+        role: "user",
+        parts: [
+          {
+            kind: "text",
+            text: userMessage,
+          },
+        ],
+        messageId: uuidv4(),
+      },
+    },
+  };
+
+  try {
+    const response = await axios.post("http://localhost:9999/", payload, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log("🚀 ~ app.post ~ response:", response);
+
+    console.log("✅ Sent message to Python agent.");
+    if (response.data.result.parts && response.data.result.parts.length > 0) {
+      console.log(
+        "🚀 ~ app.get ~ response.data:",
+        response.data.result.parts[0].text
+      );
+      res.json(response.data.result.parts[0].text);
+    } else {
+      res.json({ message: "No response from agent" });
+    }
+
+    //{"id":"11afdb3a-d555-4701-9fac-066a09e96952","jsonrpc":"2.0","result":{"kind":"message","messageId":"bcc90ead-a178-42fb-9300-fed8a4d8aa6b","parts":[{"kind":"text","text":"Hello World"}],"role":"agent"}}
+  } catch (error: any) {
+    console.error("❌ Failed to send message:", error.message);
+    res.status(500).json({ error: "Failed to reach Python backend" });
+  }
+});
+
+// Fallback route
+app.use((req: Request, res: Response) => {
+  res.status(404).send("Not found");
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`x402 middleware listening at http://localhost:${PORT}`);
+});
