@@ -239,7 +239,9 @@ import { withPaymentInterceptor } from "x402-axios";
 import axios from "axios";
 import { Hex } from "viem";
 import { config } from "dotenv";
+import { z } from "zod";
 import express, { Request, Response } from "express";
+import { log } from "console";
 config();
 
 export interface Message {
@@ -256,6 +258,7 @@ export interface Message {
 const privateKey = process.env.PRIVATE_KEY as Hex;
 const baseURL = (process.env.BASE_URL as string) || "http://localhost:5000"; // e.g. https://example.com
 const endpointPath = "/weather"; // e.g. /weather
+const endpointPath2 = "/exchange"; // e.g. /exchange
 
 if (!privateKey || !baseURL || !endpointPath) {
   throw new Error("Missing environment variables");
@@ -281,7 +284,7 @@ server.tool(
   async () => {
     try {
       //console.log("📡 Tool 'get-weather-data' was called!");
-      const res = await client.get(endpointPath);
+      const res = await client.post(endpointPath);
       //console.log("🌦️ Weather data response:", res.data);
       return {
         content: [{ type: "text", text: JSON.stringify(res.data) }],
@@ -293,23 +296,50 @@ server.tool(
   }
 );
 
-server.tool("contact-agent", "Contact the agent B", {}, async () => {
-  const initial: Message = {
-    messageId: "msg-001",
-    sender: "AgentA",
-    recipient: "AgentB",
-    payload: "Hello from A!",
-    method: "echo",
-    jsonrpc: "2.0",
-    params: {
-      text: "Hello from A!",
-    },
-  };
-  const res = await client.post(endpointPath, initial);
-  return {
-    content: [{ type: "text", text: JSON.stringify(res.data) }],
-  };
-});
+// server.tool("contact-agent", "Contact the agent B", {}, async () => {
+//   // const initial: Message = {
+//   //   messageId: "msg-001",
+//   //   sender: "AgentA",
+//   //   recipient: "AgentB",
+//   //   payload: "Hello from A!",
+//   //   method: "echo",
+//   //   jsonrpc: "2.0",
+//   //   params: {
+//   //     text: "Hello from A!",
+//   //   },
+//   // };
+//   const res = await client.post(endpointPath2);
+//   return {
+//     content: [{ type: "text", text: JSON.stringify(res.data) }],
+//   };
+// });
+
+server.tool(
+  "exchange-rate",
+  "Provides information about the exchange rate, for example how much is 10 USD in EUR",
+  {
+    question: z
+      .string()
+      .min(0)
+      .max(1000)
+      .describe(
+        "The question to ask about the exchange rate for example how much is 10 USD in EUR"
+      ),
+  },
+  async ({ question }) => {
+    // server.server.sendLoggingMessage({ message: question, level: "info" });
+    if (!question) {
+      throw new Error("Message is required to ask about the exchange rate");
+    }
+    const userMessage = question;
+
+    const res = await client.post(endpointPath2, { message: userMessage });
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(res.data) }],
+    };
+  }
+);
 
 async function main() {
   // 2. Create stdio transport
