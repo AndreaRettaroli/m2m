@@ -4,6 +4,8 @@ This proof-of-concept (PoC) project demonstrates autonomous economic interaction
 
 ![m22](./images/Frame%209.png)
 
+The implementation relies on the following technical stack:
+
 ### A2A (Agent-to-Agent) Protocol
 
 A2A is an open-source framework from Google that enables autonomous AI agents to discover, communicate, and collaborate securely. It provides a standardized protocol for agents, even those built on different platforms, to negotiate capabilities, delegate tasks, and coordinate actions. This creates an interoperable ecosystem where specialized agents can work together to automate complex workflows and solve problems more effectively.
@@ -17,5 +19,63 @@ MCP is an open standard from Anthropic that serves as the semantic backbone for 
 The x402 protocol is an open standard from Coinbase for internet-native payments, designed for both humans and autonomous AI agents. It leverages the standard HTTP 402 Payment Required status code to create a seamless, low-friction way to pay for API calls, data access, or services rendered by other agents. Built to be chain-agnostic and trust-minimizing, x402 enables on-chain micropayments without the overhead of traditional financial systems, paving the way for a programmable economy where agents can autonomously transact for services.
 
 ### How to Setup
+
+1. Start the Gemini Agent that can provide fiat currency exchange:
+
+```
+cd agents/langgraph
+```
+create docker build:
+```
+docker build -t langgraph-a2a-server -f Containerfile . 
+```
+run docker build:
+```
+docker run -p 10000:10000 -e GOOGLE_API_KEY=<your-gemini-api-key> langgraph-a2a-server
+```
+
+2. Start the proxy middleware:
+Python implementation of x402 was released couple of days ago, we had to create a typescript wrapper to manage it. 
+
+In the main folder run:
+
+```
+npm instal
+```
+and
+```
+npm run dev
+```
+
+3. Just use Claude or Cursor as the Second Agent/Chatbot that has to interact via the first Agent:
+
+open `claude_desktop_config.json` and attach the mcp server via adding this configuration:
+
+```
+{
+  "mcpServers": {
+    "demo": {
+      "command": "/Users/your-user/.nvm/versions/node/v23.3.0/bin/npm",
+      "args": [
+        "--silent",
+        "run",
+        "dev",
+        "-C",
+        "/Users/your-user/m2m/mcp"
+      ],
+      "env": {
+        "PRIVATE_KEY": "your-wallet-private-key",
+        "RESOURCE_SERVER_URL": "http://localhost:5000",
+      }
+    }
+  }
+}
+```
+
+ask Claude about a currency exchange like:  `how much is 10 USD in EUR?`
+
+![result](./images/Screenshot%202025-06-16%20at%2000.04.42.png)
+
+
 
 ### Conclusions
