@@ -76,7 +76,9 @@ ask Claude about a currency exchange like:  `how much is 10 USD in EUR?`
 
 ![result](./images/Screenshot%202025-06-16%20at%2000.04.42.png)
 
+### Implementation communication schema
 
+![schema](./images/schema.png)
 
 ### Conclusions
 
